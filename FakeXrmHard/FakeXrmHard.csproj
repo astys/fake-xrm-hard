@@ -1,0 +1,23 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net8.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <PackageId>FakeXrmHard</PackageId>
+        <Version>1.0.0</Version>
+        <Authors>@jordimontana; @astys</Authors>
+        <Description>Utilities to streamline unit testing in Dynamics CRM 365 by faking the IOrganizationService against an In-Memory context which runs blazing fast.</Description>
+        <PackageLicenseExpression>MIT</PackageLicenseExpression>
+        <PackageProjectUrl>https://github.com/astys/fake-xrm-hard</PackageProjectUrl>
+        <RepositoryUrl>https://github.com/astys/fake-xrm-hard</RepositoryUrl>
+        <PackageTags>dynamics crm 365 unit testing xrm mock mocking fake fakes</PackageTags>
+        <Copyright>Copyright 2014-2025</Copyright>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <PackageReference Include="FakeItEasy" Version="8.3.0" />
+      <PackageReference Include="Microsoft.PowerPlatform.Dataverse.Client" Version="1.2.3" />
+    </ItemGroup>
+
+</Project>
