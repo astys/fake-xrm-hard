@@ -7,6 +7,7 @@ using Microsoft.Xrm.Sdk.Messages;
 using Microsoft.Xrm.Sdk.Metadata;
 using Microsoft.Xrm.Sdk.Query;
 using System.Reflection;
+using Microsoft.PowerPlatform.Dataverse.Client;
 
 namespace FakeXrmEasy
 {
@@ -18,6 +19,7 @@ namespace FakeXrmEasy
     public partial class XrmFakedContext : IXrmContext
     {
         protected internal IOrganizationService Service { get; set; }
+        protected internal IOrganizationServiceAsync2 ServiceAsync2 { get; set; }
 
         private IServiceEndpointNotificationService _serviceEndpointNotificationService;
 
@@ -279,6 +281,16 @@ namespace FakeXrmEasy
             }
             return GetFakedOrganizationService(this);
         }
+        
+        public virtual IOrganizationServiceAsync2 GetOrganizationServiceAsync2()
+        {
+            if (this is XrmRealContext)
+            {
+                ServiceAsync2 = GetOrganizationServiceAsync2();
+                return ServiceAsync2;
+            }
+            return GetFakedOrganizationServiceAsync2(this);
+        }
 
         /// <summary>
         /// Deprecated. Use GetOrganizationService instead
@@ -315,6 +327,41 @@ namespace FakeXrmEasy
             context.Service = fakedService;
 
             return context.Service;
+        }
+        
+        protected IOrganizationServiceAsync2 GetFakedOrganizationServiceAsync2(XrmFakedContext context)
+        {
+            if (context.ServiceAsync2 != null)
+            {
+                return context.ServiceAsync2;
+            }
+
+            var fakedService = A.Fake<IOrganizationServiceAsync2>();
+
+            //Fake CRUD methods (both sync and async versions)
+            FakeRetrieveAsync(context, fakedService);
+            FakeRetrieve(context, fakedService);
+            FakeCreateAsync(context, fakedService);
+            FakeCreate(context, fakedService);
+            FakeUpdateAsync(context, fakedService);
+            FakeUpdate(context, fakedService);
+            FakeDeleteAsync(context, fakedService);
+            FakeDelete(context, fakedService);
+
+            //Fake / Intercept Retrieve Multiple Requests (both sync and async versions)
+            FakeRetrieveMultipleAsync(context, fakedService);
+            FakeRetrieveMultiple(context, fakedService);
+
+            //Fake / Intercept other requests (both sync and async versions)
+            FakeExecuteAsync(context, fakedService);
+            FakeExecute(context, fakedService);
+            FakeAssociateAsync(context, fakedService);
+            FakeAssociate(context, fakedService);
+            FakeDisassociateAsync(context, fakedService);
+            FakeDisassociate(context, fakedService);
+            context.ServiceAsync2 = fakedService;
+
+            return context.ServiceAsync2;
         }
 
         /// <summary>
@@ -404,6 +451,95 @@ namespace FakeXrmEasy
             A.CallTo(() => fakedService.RetrieveMultiple(A<QueryBase>._))
                 .Invokes((QueryBase req) => entities = retriveMultiple(req))
                 .ReturnsLazily((QueryBase req) => entities);
+        }
+        
+        /// <summary>
+        /// Fakes the Execute method of the organization service.
+        /// Not all the OrganizationRequest are going to be implemented, so stay tunned on updates!
+        /// </summary>
+        /// <param name="context"></param>
+        /// <param name="fakedService"></param>
+        public static void FakeExecuteAsync(XrmFakedContext context, IOrganizationServiceAsync2 fakedService)
+        {
+            OrganizationResponse response = null;
+            Func<OrganizationRequest, OrganizationResponse> execute = (req) =>
+            {
+                if (context.ExecutionMocks.ContainsKey(req.GetType()))
+                    return context.ExecutionMocks[req.GetType()].Invoke(req);
+
+                if (context.FakeMessageExecutors.ContainsKey(req.GetType())
+                    && context.FakeMessageExecutors[req.GetType()].CanExecute(req))
+                    return context.FakeMessageExecutors[req.GetType()].Execute(req, context);
+
+                if (req.GetType() == typeof(OrganizationRequest)
+                    && context.GenericFakeMessageExecutors.ContainsKey(req.RequestName))
+                    return context.GenericFakeMessageExecutors[req.RequestName].Execute(req, context);
+
+                throw PullRequestException.NotImplementedOrganizationRequest(req.GetType());
+            };
+
+            A.CallTo(() => fakedService.ExecuteAsync(A<OrganizationRequest>._))
+                .Invokes((OrganizationRequest req) => response = execute(req))
+                .ReturnsLazily(async (OrganizationRequest req) => await Task.FromResult(response));
+        }
+
+        public static void FakeAssociateAsync(XrmFakedContext context, IOrganizationServiceAsync2 fakedService)
+        {
+            A.CallTo(() => fakedService.AssociateAsync(A<string>._, A<Guid>._, A<Relationship>._, A<EntityReferenceCollection>._))
+                .Invokes((string entityName, Guid entityId, Relationship relationship, EntityReferenceCollection entityCollection) =>
+                {
+                    if (context.FakeMessageExecutors.ContainsKey(typeof(AssociateRequest)))
+                    {
+                        var request = new AssociateRequest()
+                        {
+                            Target = new EntityReference() { Id = entityId, LogicalName = entityName },
+                            Relationship = relationship,
+                            RelatedEntities = entityCollection
+                        };
+                        context.FakeMessageExecutors[typeof(AssociateRequest)].Execute(request, context);
+                    }
+                    else
+                        throw PullRequestException.NotImplementedOrganizationRequest(typeof(AssociateRequest));
+                });
+        }
+
+        public static void FakeDisassociateAsync(XrmFakedContext context, IOrganizationServiceAsync2 fakedService)
+        {
+            A.CallTo(() => fakedService.DisassociateAsync(A<string>._, A<Guid>._, A<Relationship>._, A<EntityReferenceCollection>._))
+                .Invokes((string entityName, Guid entityId, Relationship relationship, EntityReferenceCollection entityCollection) =>
+                {
+                    if (context.FakeMessageExecutors.ContainsKey(typeof(DisassociateRequest)))
+                    {
+                        var request = new DisassociateRequest()
+                        {
+                            Target = new EntityReference() { Id = entityId, LogicalName = entityName },
+                            Relationship = relationship,
+                            RelatedEntities = entityCollection
+                        };
+                        context.FakeMessageExecutors[typeof(DisassociateRequest)].Execute(request, context);
+                    }
+                    else
+                        throw PullRequestException.NotImplementedOrganizationRequest(typeof(DisassociateRequest));
+                });
+        }
+
+        public static void FakeRetrieveMultipleAsync(XrmFakedContext context, IOrganizationServiceAsync2 fakedService)
+        {
+            EntityCollection? entities = null;
+            var retriveMultiple = (QueryBase req) =>
+            {
+                var request = new RetrieveMultipleRequest { Query = req };
+
+                var executor = new RetrieveMultipleRequestExecutor();
+                var response = executor.Execute(request, context) as RetrieveMultipleResponse;
+
+                return response?.EntityCollection;
+            };
+
+            //refactored from RetrieveMultipleExecutor
+            A.CallTo(() => fakedService.RetrieveMultipleAsync(A<QueryBase>._))
+                .Invokes((QueryBase req) => entities = retriveMultiple(req))
+                .ReturnsLazily(async (QueryBase req) => await Task.FromResult(entities));
         }
 
         public IServiceEndpointNotificationService GetFakedServiceEndpointNotificationService()

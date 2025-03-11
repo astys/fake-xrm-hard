@@ -5,6 +5,7 @@ using Microsoft.Xrm.Sdk.Messages;
 using Microsoft.Xrm.Sdk.Query;
 using System.Reflection;
 using System.ServiceModel;
+using Microsoft.PowerPlatform.Dataverse.Client;
 
 namespace FakeXrmEasy
 {
@@ -110,6 +111,76 @@ namespace FakeXrmEasy
         protected static void FakeUpdate(XrmFakedContext context, IOrganizationService fakedService)
         {
             A.CallTo(() => fakedService.Update(A<Entity>._))
+                .Invokes((Entity e) =>
+                {
+                    context.UpdateEntity(e);
+                });
+        }
+        
+         /// <summary>
+        /// Fakes the delete method. Very similar to the Retrieve one
+        /// </summary>
+        /// <param name="context"></param>
+        /// <param name="fakedService"></param>
+        protected static void FakeDeleteAsync(XrmFakedContext context, IOrganizationServiceAsync2 fakedService)
+        {
+            A.CallTo(() => fakedService.DeleteAsync(A<string>._, A<Guid>._))
+                .Invokes((string entityName, Guid id) =>
+                {
+                    if (string.IsNullOrWhiteSpace(entityName))
+                    {
+                        throw new InvalidOperationException("The entity logical name must not be null or empty.");
+                    }
+
+                    if (id == Guid.Empty)
+                    {
+                        throw new InvalidOperationException("The id must not be empty.");
+                    }
+
+                    var entityReference = new EntityReference(entityName, id);
+
+                    context.DeleteEntity(entityReference);
+                });
+        }
+        
+        /// <summary>
+        /// A fake retrieve method that will query the FakedContext to retrieve the specified
+        /// entity and Guid, or null, if the entity was not found
+        /// </summary>
+        /// <param name="context">The faked context</param>
+        /// <param name="fakedService">The faked service where the Retrieve method will be faked</param>
+        /// <returns></returns>
+        protected static void FakeRetrieveAsync(XrmFakedContext context, IOrganizationServiceAsync2 fakedService)
+        {
+            A.CallTo(() => fakedService.RetrieveAsync(A<string>._, A<Guid>._, A<ColumnSet>._))
+                .ReturnsLazily(async (string entityName, Guid id, ColumnSet columnSet) =>
+                {
+                    var retrieveRequest = new RetrieveRequest
+                    {
+                        Target = new EntityReference() { LogicalName = entityName, Id = id },
+                        ColumnSet = columnSet
+                    };
+                    var executor = context.FakeMessageExecutors[typeof(RetrieveRequest)];
+
+                    RetrieveResponse retrieveResponse = (RetrieveResponse)executor.Execute(retrieveRequest, context);
+
+                    return await Task.FromResult(retrieveResponse.Entity);
+                });
+        }
+        /// <summary>
+        /// Fakes the Create message
+        /// </summary>
+        /// <param name="context"></param>
+        /// <param name="fakedService"></param>
+        protected static void FakeCreateAsync(XrmFakedContext context, IOrganizationServiceAsync2 fakedService)
+        {
+            A.CallTo(() => fakedService.CreateAsync(A<Entity>._))
+                .ReturnsLazily((Entity e) => context.CreateEntity(e));
+        }
+
+        protected static void FakeUpdateAsync(XrmFakedContext context, IOrganizationServiceAsync2 fakedService)
+        {
+            A.CallTo(() => fakedService.UpdateAsync(A<Entity>._))
                 .Invokes((Entity e) =>
                 {
                     context.UpdateEntity(e);

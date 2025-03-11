@@ -1,4 +1,5 @@
-﻿using Microsoft.Xrm.Sdk;
+﻿using Microsoft.PowerPlatform.Dataverse.Client;
+using Microsoft.Xrm.Sdk;
 
 namespace FakeXrmEasy;
 
@@ -15,6 +16,12 @@ public interface IXrmContext
     /// </summary>
     /// <returns></returns>
     IOrganizationService GetOrganizationService();
+    
+    /// <summary>
+    /// Returns an instance of an organization service
+    /// </summary>
+    /// <returns></returns>
+    IOrganizationServiceAsync2 GetOrganizationServiceAsync2();
 
     /// <summary>
     /// DEPRECATED: Consider using GetOrganizationService instead

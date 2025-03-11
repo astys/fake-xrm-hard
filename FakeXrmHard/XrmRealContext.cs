@@ -41,6 +41,15 @@ namespace FakeXrmEasy
             Service = GetOrgService();
             return Service;
         }
+        
+        public override IOrganizationServiceAsync2 GetOrganizationServiceAsync2()
+        {
+            if (ServiceAsync2 != null)
+                return ServiceAsync2;
+
+            ServiceAsync2 = GetOrgServiceAsync();
+            return ServiceAsync2;
+        }
 
         public override void Initialize(IEnumerable<Entity> entities)
         {
@@ -48,6 +57,23 @@ namespace FakeXrmEasy
         }
 
         protected IOrganizationService GetOrgService()
+        {
+            var connection = ConfigurationManager.ConnectionStrings[ConnectionStringName];
+
+            // In case of missing connection string in configuration,
+            // use ConnectionStringName as an explicit connection string
+            var connectionString = connection == null ? ConnectionStringName : connection.ConnectionString;
+
+            if (string.IsNullOrWhiteSpace(connectionString))
+            {
+                throw new Exception("The ConnectionStringName property must be either a connection string or a connection string name");
+            }
+
+            var client = new ServiceClient(connectionString);
+            return client;
+        }
+        
+        protected IOrganizationServiceAsync2 GetOrgServiceAsync()
         {
             var connection = ConfigurationManager.ConnectionStrings[ConnectionStringName];
 
