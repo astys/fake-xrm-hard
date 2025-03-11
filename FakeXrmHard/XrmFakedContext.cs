@@ -481,12 +481,33 @@ namespace FakeXrmEasy
             A.CallTo(() => fakedService.ExecuteAsync(A<OrganizationRequest>._, A<CancellationToken>._))
                 .Invokes((OrganizationRequest req, CancellationToken _) => response = execute(req))
                 .ReturnsLazily(async (OrganizationRequest req, CancellationToken _) => await Task.FromResult(response));
+            
+            A.CallTo(() => fakedService.ExecuteAsync(A<OrganizationRequest>._))
+                .Invokes((OrganizationRequest req) => response = execute(req))
+                .ReturnsLazily(async (OrganizationRequest req) => await Task.FromResult(response));
         }
 
         public static void FakeAssociateAsync(XrmFakedContext context, IOrganizationServiceAsync2 fakedService)
         {
             A.CallTo(() => fakedService.AssociateAsync(A<string>._, A<Guid>._, A<Relationship>._, A<EntityReferenceCollection>._, A<CancellationToken>._))
                 .Invokes((string entityName, Guid entityId, Relationship relationship, EntityReferenceCollection entityCollection, CancellationToken _) =>
+                {
+                    if (context.FakeMessageExecutors.ContainsKey(typeof(AssociateRequest)))
+                    {
+                        var request = new AssociateRequest()
+                        {
+                            Target = new EntityReference() { Id = entityId, LogicalName = entityName },
+                            Relationship = relationship,
+                            RelatedEntities = entityCollection
+                        };
+                        context.FakeMessageExecutors[typeof(AssociateRequest)].Execute(request, context);
+                    }
+                    else
+                        throw PullRequestException.NotImplementedOrganizationRequest(typeof(AssociateRequest));
+                });
+            
+            A.CallTo(() => fakedService.AssociateAsync(A<string>._, A<Guid>._, A<Relationship>._, A<EntityReferenceCollection>._))
+                .Invokes((string entityName, Guid entityId, Relationship relationship, EntityReferenceCollection entityCollection) =>
                 {
                     if (context.FakeMessageExecutors.ContainsKey(typeof(AssociateRequest)))
                     {
@@ -521,6 +542,23 @@ namespace FakeXrmEasy
                     else
                         throw PullRequestException.NotImplementedOrganizationRequest(typeof(DisassociateRequest));
                 });
+            
+            A.CallTo(() => fakedService.DisassociateAsync(A<string>._, A<Guid>._, A<Relationship>._, A<EntityReferenceCollection>._))
+                .Invokes((string entityName, Guid entityId, Relationship relationship, EntityReferenceCollection entityCollection) =>
+                {
+                    if (context.FakeMessageExecutors.ContainsKey(typeof(DisassociateRequest)))
+                    {
+                        var request = new DisassociateRequest()
+                        {
+                            Target = new EntityReference() { Id = entityId, LogicalName = entityName },
+                            Relationship = relationship,
+                            RelatedEntities = entityCollection
+                        };
+                        context.FakeMessageExecutors[typeof(DisassociateRequest)].Execute(request, context);
+                    }
+                    else
+                        throw PullRequestException.NotImplementedOrganizationRequest(typeof(DisassociateRequest));
+                });
         }
 
         public static void FakeRetrieveMultipleAsync(XrmFakedContext context, IOrganizationServiceAsync2 fakedService)
@@ -540,6 +578,11 @@ namespace FakeXrmEasy
             A.CallTo(() => fakedService.RetrieveMultipleAsync(A<QueryBase>._, A<CancellationToken>._))
                 .Invokes((QueryBase req, CancellationToken _) => entities = retriveMultiple(req))
                 .ReturnsLazily(async (QueryBase req, CancellationToken _) => await Task.FromResult(entities));
+            
+            //refactored from RetrieveMultipleExecutor
+            A.CallTo(() => fakedService.RetrieveMultipleAsync(A<QueryBase>._))
+                .Invokes((QueryBase req) => entities = retriveMultiple(req))
+                .ReturnsLazily(async (QueryBase req) => await Task.FromResult(entities));
         }
 
         public IServiceEndpointNotificationService GetFakedServiceEndpointNotificationService()
