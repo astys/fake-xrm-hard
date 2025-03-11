@@ -124,7 +124,7 @@ namespace FakeXrmEasy
         /// <param name="fakedService"></param>
         protected static void FakeDeleteAsync(XrmFakedContext context, IOrganizationServiceAsync2 fakedService)
         {
-            A.CallTo(() => fakedService.DeleteAsync(A<string>._, A<Guid>._))
+            A.CallTo(() => fakedService.DeleteAsync(A<string>._, A<Guid>._, A<CancellationToken>._))
                 .Invokes((string entityName, Guid id) =>
                 {
                     if (string.IsNullOrWhiteSpace(entityName))
@@ -152,7 +152,7 @@ namespace FakeXrmEasy
         /// <returns></returns>
         protected static void FakeRetrieveAsync(XrmFakedContext context, IOrganizationServiceAsync2 fakedService)
         {
-            A.CallTo(() => fakedService.RetrieveAsync(A<string>._, A<Guid>._, A<ColumnSet>._))
+            A.CallTo(() => fakedService.RetrieveAsync(A<string>._, A<Guid>._, A<ColumnSet>._, A<CancellationToken>._))
                 .ReturnsLazily(async (string entityName, Guid id, ColumnSet columnSet) =>
                 {
                     var retrieveRequest = new RetrieveRequest
@@ -174,13 +174,13 @@ namespace FakeXrmEasy
         /// <param name="fakedService"></param>
         protected static void FakeCreateAsync(XrmFakedContext context, IOrganizationServiceAsync2 fakedService)
         {
-            A.CallTo(() => fakedService.CreateAsync(A<Entity>._))
+            A.CallTo(() => fakedService.CreateAsync(A<Entity>._, A<CancellationToken>._))
                 .ReturnsLazily((Entity e) => context.CreateEntity(e));
         }
 
         protected static void FakeUpdateAsync(XrmFakedContext context, IOrganizationServiceAsync2 fakedService)
         {
-            A.CallTo(() => fakedService.UpdateAsync(A<Entity>._))
+            A.CallTo(() => fakedService.UpdateAsync(A<Entity>._, A<CancellationToken>._))
                 .Invokes((Entity e) =>
                 {
                     context.UpdateEntity(e);
